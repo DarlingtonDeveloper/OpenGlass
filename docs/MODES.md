@@ -67,6 +67,25 @@ Configurable visual monitoring.
 - **System instruction**: Dynamic — includes the configured watch targets
 - **Configuration**: Set targets via Settings
 
+### 🏋️ Coach
+
+Real-time visual coaching for physical activities.
+
+- **Use cases**: Gym form correction, cooking guidance, navigation cues, DIY/sports technique
+- **Tools**: `execute` (for looking up exercises, recipes, etc.)
+- **System instruction**: Short, actionable coaching cues — whispered, not lectured
+- **Activation**: "coach mode", "coach me", "watch my form", "help me cook"
+
+### 🤝 Social
+
+Discreet social context assistant — like a friend whispering in your ear.
+
+- **Use cases**: Read name badges, spot company logos, identify event context, read visible text
+- **Tools**: `execute` (for looking up companies, people via OpenClaw)
+- **System instruction**: Brief, natural observations about social context from visible clues only
+- **Activation**: "social mode", "who is this", "who's that"
+- **Future**: Will integrate with a personal CRM/contacts database to identify known people and surface relevant history
+
 ### 🧭 Navigator (Future)
 
 Contextual navigation assistance.

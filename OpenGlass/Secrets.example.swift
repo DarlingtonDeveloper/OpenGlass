@@ -7,4 +7,5 @@ enum Secrets {
     static let openClawPort = "18789"
     static let openClawHookToken = "YOUR_OPENCLAW_HOOK_TOKEN"
     static let openClawGatewayToken = "YOUR_OPENCLAW_GATEWAY_TOKEN"
+    static let openClawTunnelHost = "https://YOUR_TUNNEL_DOMAIN.example.com"
 }

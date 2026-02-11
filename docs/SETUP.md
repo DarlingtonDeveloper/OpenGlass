@@ -39,6 +39,36 @@ hostname
 # e.g., mikes-macbook.local
 ```
 
+## Connection Modes
+
+OpenGlass supports three connection modes for reaching the OpenClaw Gateway:
+
+| Mode | Description |
+|------|-------------|
+| **LAN** | Direct connection via local network (e.g. `http://macbook.local:18789`). Fastest, but requires same Wi-Fi. |
+| **Tunnel** | Via Cloudflare Tunnel (e.g. `https://kai.darlington.dev`). Works from anywhere, slightly higher latency. |
+| **Auto** (default) | Tries LAN first (2s timeout), falls back to tunnel if unreachable. Best of both worlds. |
+
+### Configuring the Tunnel
+
+1. Set up a Cloudflare Tunnel pointing to your OpenClaw Gateway (port 18789)
+2. Add your tunnel domain to `Secrets.swift`:
+   ```swift
+   static let openClawTunnelHost = "https://your-tunnel.example.com"
+   ```
+3. In the app, go to **Settings → OpenClaw Connection Mode** and choose your preferred mode
+4. Auto mode is recommended — it uses LAN when available and falls back to the tunnel when you're away from home
+
+### Endpoint Resolution
+
+In Auto mode, the app:
+1. Attempts to reach the LAN host with a 2-second timeout
+2. If reachable, caches the LAN endpoint for the session
+3. If unreachable, falls back to the tunnel endpoint
+4. If a cached endpoint fails during a request, retries with the alternate endpoint
+
+The resolved endpoint is shown in Settings ("Connected via: LAN" or "Connected via: Tunnel").
+
 ## Step 3: Build the App
 
 ```bash

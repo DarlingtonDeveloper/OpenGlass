@@ -14,7 +14,9 @@ class ModeRouter: ObservableObject {
             AssistantMode(),
             TranslatorMode(),
             QRScannerMode(),
-            SpotterMode()
+            SpotterMode(),
+            CoachMode(),
+            SocialMode()
         ]
         self.availableModes = modes
         self.currentMode = modes[0]

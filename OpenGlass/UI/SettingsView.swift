@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("streamingMode") private var streamingModeRaw: String = "iPhone"
+    @AppStorage("connectionMode") private var connectionModeRaw: String = ConnectionMode.auto.rawValue
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,46 @@ struct SettingsView: View {
                             Spacer()
                             Text("Connected")
                                 .foregroundColor(.green)
+                                .font(.caption)
+                        }
+                    }
+                }
+
+                Section("OpenClaw Connection Mode") {
+                    Picker("Mode", selection: $connectionModeRaw) {
+                        ForEach(ConnectionMode.allCases, id: \.rawValue) { mode in
+                            Text(mode.rawValue).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.automatic)
+                    .onChange(of: connectionModeRaw) { _, newValue in
+                        if let mode = ConnectionMode(rawValue: newValue) {
+                            OpenGlassConfig.connectionMode = mode
+                        }
+                    }
+
+                    HStack {
+                        Text("LAN Host")
+                        Spacer()
+                        Text(OpenGlassConfig.lanHost)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+
+                    HStack {
+                        Text("Tunnel Host")
+                        Spacer()
+                        Text(OpenGlassConfig.tunnelHost)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+
+                    if let resolved = session.openClawBridge.resolvedConnection {
+                        HStack {
+                            Text("Connected via")
+                            Spacer()
+                            Text(resolved.label)
+                                .foregroundColor(.blue)
                                 .font(.caption)
                         }
                     }

@@ -13,6 +13,7 @@ enum GeminiConnectionState: Equatable {
 class GeminiLiveService: ObservableObject {
     @Published var connectionState: GeminiConnectionState = .disconnected
     @Published var isModelSpeaking: Bool = false
+    @Published var reconnecting: Bool = false
 
     var onAudioReceived: ((Data) -> Void)?
     var onTurnComplete: (() -> Void)?
@@ -22,6 +23,15 @@ class GeminiLiveService: ObservableObject {
     var onOutputTranscription: ((String) -> Void)?
     var onToolCall: ((GeminiToolCall) -> Void)?
     var onToolCallCancellation: ((GeminiToolCallCancellation) -> Void)?
+
+    var onReconnected: (() -> Void)?
+
+    // Reconnection
+    private var intentionalDisconnect = false
+    private var reconnectAttempts = 0
+    private let maxReconnectAttempts = 10
+    private let maxBackoffSeconds: Double = 30
+    private var reconnectTask: Task<Void, Never>?
 
     // Latency tracking
     private var lastUserSpeechEnd: Date?
@@ -57,6 +67,7 @@ class GeminiLiveService: ObservableObject {
             return false
         }
 
+        intentionalDisconnect = false
         connectionState = .connecting
 
         let result = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
@@ -78,7 +89,9 @@ class GeminiLiveService: ObservableObject {
                     self.resolveConnect(success: false)
                     self.connectionState = .disconnected
                     self.isModelSpeaking = false
-                    self.onDisconnected?("Connection closed (code \(code.rawValue): \(reasonStr))")
+                    let msg = "Connection closed (code \(code.rawValue): \(reasonStr))"
+                    self.onDisconnected?(msg)
+                    self.scheduleReconnect(reason: msg)
                 }
             }
 
@@ -90,6 +103,7 @@ class GeminiLiveService: ObservableObject {
                     self.connectionState = .error(msg)
                     self.isModelSpeaking = false
                     self.onDisconnected?(msg)
+                    self.scheduleReconnect(reason: msg)
                 }
             }
 
@@ -112,6 +126,10 @@ class GeminiLiveService: ObservableObject {
     }
 
     func disconnect() {
+        intentionalDisconnect = true
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnecting = false
         receiveTask?.cancel()
         receiveTask = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
@@ -121,9 +139,51 @@ class GeminiLiveService: ObservableObject {
         delegate.onError = nil
         onToolCall = nil
         onToolCallCancellation = nil
+        onReconnected = nil
         connectionState = .disconnected
         isModelSpeaking = false
         resolveConnect(success: false)
+    }
+
+    // MARK: - Reconnection
+
+    private func scheduleReconnect(reason: String?) {
+        guard !intentionalDisconnect else {
+            NSLog("[Gemini] Intentional disconnect — not reconnecting")
+            return
+        }
+        guard reconnectAttempts < maxReconnectAttempts else {
+            NSLog("[Gemini] Max reconnect attempts (%d) reached — giving up", maxReconnectAttempts)
+            connectionState = .error("Connection lost after \(maxReconnectAttempts) reconnect attempts")
+            reconnecting = false
+            return
+        }
+
+        reconnecting = true
+        reconnectAttempts += 1
+        let delay = min(pow(2.0, Double(reconnectAttempts - 1)), maxBackoffSeconds)
+        NSLog("[Gemini] Reconnect attempt %d/%d in %.0fs (reason: %@)",
+              reconnectAttempts, maxReconnectAttempts, delay, reason ?? "unknown")
+
+        reconnectTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+
+            // Clean up old socket
+            self.receiveTask?.cancel()
+            self.receiveTask = nil
+            self.webSocketTask?.cancel(with: .normalClosure, reason: nil)
+            self.webSocketTask = nil
+
+            let success = await self.connect()
+            if success {
+                self.reconnectAttempts = 0
+                self.reconnecting = false
+                NSLog("[Gemini] Reconnected successfully")
+                self.onReconnected?()
+            }
+            // If connect fails, the onClose/onError handlers will trigger another scheduleReconnect
+        }
     }
 
     func sendAudio(data: Data) {
@@ -246,6 +306,7 @@ class GeminiLiveService: ObservableObject {
                             self.connectionState = .disconnected
                             self.isModelSpeaking = false
                             self.onDisconnected?(reason)
+                            self.scheduleReconnect(reason: reason)
                         }
                     }
                     break

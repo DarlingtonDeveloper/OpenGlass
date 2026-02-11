@@ -17,10 +17,11 @@ class GeminiSessionViewModel: ObservableObject {
     @Published var toolCallStatus: ToolCallStatus = .idle
     @Published var openClawConnectionState: OpenClawConnectionState = .notConfigured
     @Published var detectedQRCodes: [QRContent] = []
+    @Published var reconnecting: Bool = false
 
     let modeRouter = ModeRouter()
     private let geminiService = GeminiLiveService()
-    private let openClawBridge = OpenClawBridge()
+    let openClawBridge = OpenClawBridge()
     private var toolCallRouter: ToolCallRouter?
     private let audioManager = AudioManager()
     private let frameThrottler = FrameThrottler()
@@ -111,8 +112,32 @@ class GeminiSessionViewModel: ObservableObject {
             guard let self else { return }
             Task { @MainActor in
                 guard self.isGeminiActive else { return }
-                self.stopSession()
-                self.errorMessage = "Connection lost: \(reason ?? "Unknown error")"
+                // Don't stop session — let reconnection logic handle it
+                if !self.geminiService.reconnecting {
+                    self.stopSession()
+                    self.errorMessage = "Connection lost: \(reason ?? "Unknown error")"
+                }
+            }
+        }
+
+        geminiService.onReconnected = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in
+                NSLog("[Session] Reconnected — re-sending setup for mode %@", self.modeRouter.currentMode.id)
+                // Re-configure with current mode
+                self.geminiService.configure(
+                    systemInstruction: self.modeRouter.currentMode.systemInstruction,
+                    toolDeclarations: self.modeRouter.currentMode.toolDeclarations
+                )
+                // Re-start audio capture
+                do {
+                    try self.audioManager.startCapture()
+                } catch {
+                    NSLog("[Session] Failed to restart audio after reconnect: %@", error.localizedDescription)
+                }
+                // Re-start camera
+                let activeCamera: CameraSource = self.streamingMode == .iPhone ? self.iPhoneCamera : self.glassesCamera
+                activeCamera.start()
             }
         }
 
@@ -148,6 +173,7 @@ class GeminiSessionViewModel: ObservableObject {
                 guard !Task.isCancelled else { break }
                 self.connectionState = self.geminiService.connectionState
                 self.isModelSpeaking = self.geminiService.isModelSpeaking
+                self.reconnecting = self.geminiService.reconnecting
                 self.toolCallStatus = self.openClawBridge.lastToolCallStatus
                 self.openClawConnectionState = self.openClawBridge.connectionState
             }

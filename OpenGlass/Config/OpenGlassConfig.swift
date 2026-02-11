@@ -1,6 +1,16 @@
 import Foundation
 
+enum ConnectionMode: String, CaseIterable {
+    case lan = "LAN (Local Network)"
+    case tunnel = "Cloudflare Tunnel"
+    case auto = "Auto (try LAN first, fall back to tunnel)"
+}
+
 enum OpenGlassConfig {
+    static var connectionMode: ConnectionMode = .auto
+    static var tunnelHost: String { Secrets.openClawTunnelHost } // e.g. "https://kai.darlington.dev"
+    static var lanHost: String { Secrets.openClawHost } // e.g. "http://macbook.local"
+
     static let websocketBaseURL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
     static let model = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 

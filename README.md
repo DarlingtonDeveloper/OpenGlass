@@ -37,8 +37,8 @@ graph TD
 | 🌐 **Translator** | Real-time Mandarin ↔ English translation (voice + visual text) |
 | 📱 **QR Scanner** | Detect and act on QR codes — open links, add contacts, trigger skills |
 | 👁️ **Spotter** | Watch for specific objects/events and alert when spotted |
-| 🧭 **Navigator** | Contextual navigation — read signs, find places, look up routes |
-| ⚙️ **Custom** | User-defined modes with custom system instructions and tool sets |
+| 🏋️ **Coach** | Real-time visual coaching — gym form, cooking guidance, navigation cues, DIY |
+| 🤝 **Social** | Discreet social context — read badges, spot logos, identify settings |
 
 ## How It Works
 
@@ -72,6 +72,14 @@ open OpenGlass.xcodeproj  # (when Xcode project is created)
 2. Ensure OpenClaw Gateway is running (`openclaw gateway status`)
 3. Connect to the same Wi-Fi network as your Mac
 4. (Optional) Pair Meta Ray-Ban glasses via Bluetooth
+
+### Connection Options
+
+OpenGlass supports three ways to reach your OpenClaw Gateway:
+
+- **LAN** — Direct local network connection (fastest, same Wi-Fi required)
+- **Tunnel** — Via Cloudflare Tunnel (works from anywhere)
+- **Auto** — Tries LAN first, falls back to tunnel (recommended)
 
 See [docs/SETUP.md](docs/SETUP.md) for detailed instructions.
 
