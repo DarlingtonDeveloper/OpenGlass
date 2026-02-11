@@ -1,17 +1,28 @@
-// OpenGlass - FrameThrottler.swift
-
 import Foundation
-import CoreImage
+import UIKit
 
-/// Throttles camera frames to a target rate and encodes as JPEG.
-/// TODO: Accept raw frames at camera rate (24-30fps)
-/// TODO: Emit frames at configured rate (default 1fps)
-/// TODO: JPEG encode with configurable quality (default 80%)
-/// TODO: Target ~100KB per frame
-/// TODO: Provide encoded Data via async stream or callback
+/// Throttles camera frames to a configurable interval before forwarding.
 class FrameThrottler {
-    var targetFPS: Double = 1.0
-    var jpegQuality: CGFloat = 0.8
-    // TODO: Timestamp-based throttling logic
-    // TODO: JPEG encoding via CIContext or UIImage
+    var onThrottledFrame: ((UIImage) -> Void)?
+
+    private var lastFrameTime: Date = .distantPast
+    private let interval: TimeInterval
+
+    /// - Parameter interval: Minimum seconds between forwarded frames (default: from config).
+    init(interval: TimeInterval = OpenGlassConfig.videoFrameInterval) {
+        self.interval = interval
+    }
+
+    /// Call with every camera frame. Only forwards if enough time has passed.
+    func submit(_ image: UIImage) {
+        let now = Date()
+        guard now.timeIntervalSince(lastFrameTime) >= interval else { return }
+        lastFrameTime = now
+        onThrottledFrame?(image)
+    }
+
+    /// Reset the throttle timer (e.g. on session restart).
+    func reset() {
+        lastFrameTime = .distantPast
+    }
 }

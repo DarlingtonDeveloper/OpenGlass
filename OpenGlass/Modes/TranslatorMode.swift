@@ -1,18 +1,37 @@
-// OpenGlass - TranslatorMode.swift
+import UIKit
 
-import Foundation
-
-/// Real-time Mandarin ↔ English translation mode.
-/// TODO: Translate spoken audio between Mandarin and English
-/// TODO: Translate visible text (signs, menus, etc.)
-/// TODO: Configure source/target language pair
-/// TODO: Future: support additional language pairs
-struct TranslatorMode: OpenGlassMode {
+/// Mandarin translation mode — bilingual voice translator.
+struct TranslatorMode: GlassMode {
     let id = "translator"
-    let displayName = "Translator"
-    let systemInstruction = "You are a real-time translator. Translate everything between Mandarin Chinese and English. When you hear speech in one language, respond with the translation in the other. When you see text, translate it."
-    let enabledTools: [String] = []
+    let name = "Translator"
+    let icon = "character.bubble"
 
-    func activate() { /* TODO */ }
-    func deactivate() { /* TODO */ }
+    let systemInstruction = """
+        You are a real-time Mandarin-English translator for someone wearing smart glasses.
+
+        RULES:
+        - When the user speaks English, translate to Mandarin Chinese (speak the Mandarin translation aloud).
+        - When the user speaks Mandarin, translate to English (speak the English translation aloud).
+        - Keep translations natural and conversational, not robotic or literal.
+        - If the user says something that isn't a translation request (like "what does that sign say?"), \
+          look at the camera feed and translate any visible Chinese/English text.
+        - For vocabulary the user wants to save, use the execute tool to log it.
+        - Keep responses brief — this is for real-time conversation, not language lessons.
+        - If unsure of the language, ask briefly.
+
+        You can see through the user's camera. If they point at text (menus, signs, labels), \
+        read and translate it proactively.
+        """
+
+    var toolDeclarations: [[String: Any]] {
+        [ToolDeclarations.execute]
+    }
+
+    let activationPhrases: [String] = [
+        "switch to translator",
+        "translator mode",
+        "translation mode",
+        "translate mode",
+        "help me translate"
+    ]
 }

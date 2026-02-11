@@ -1,18 +1,23 @@
-// OpenGlass - ModeProtocol.swift
+import UIKit
 
-import Foundation
-
-/// Defines the interface that all OpenGlass modes must implement.
-/// TODO: Each mode provides a system instruction for Gemini
-/// TODO: Each mode declares which tools it needs
-/// TODO: Each mode can provide a custom SwiftUI overlay view
-/// TODO: Modes handle activation/deactivation lifecycle
-protocol OpenGlassMode {
+/// Protocol that defines a mode for OpenGlass.
+/// Each mode provides its own system instruction, tool declarations, and activation logic.
+protocol GlassMode {
     var id: String { get }
-    var displayName: String { get }
+    var name: String { get }
+    var icon: String { get }  // SF Symbol name
     var systemInstruction: String { get }
-    var enabledTools: [String] { get }
+    var toolDeclarations: [[String: Any]] { get }
+    var activationPhrases: [String] { get }  // voice triggers
 
-    func activate()
-    func deactivate()
+    /// Check if this mode should auto-activate based on transcript or camera frame.
+    func shouldAutoActivate(transcript: String, frame: UIImage?) -> Bool
+}
+
+extension GlassMode {
+    /// Default implementation: check if transcript contains any activation phrase.
+    func shouldAutoActivate(transcript: String, frame: UIImage?) -> Bool {
+        let lower = transcript.lowercased()
+        return activationPhrases.contains { lower.contains($0.lowercased()) }
+    }
 }

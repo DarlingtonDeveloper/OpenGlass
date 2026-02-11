@@ -50,3 +50,4 @@ Carthage/Checkouts/
 # Secrets
 .env
 *.key
+Secrets.swift

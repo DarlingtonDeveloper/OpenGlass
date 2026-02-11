@@ -1,17 +1,139 @@
-// OpenGlass - OpenClawBridge.swift
-
 import Foundation
 
-/// HTTP client for communicating with the OpenClaw Gateway on the LAN.
-/// TODO: Discover gateway via mDNS/Bonjour (.local hostname)
-/// TODO: Health check endpoint to verify connectivity
-/// TODO: Send skill invocation requests (POST)
-/// TODO: Parse skill results and return to caller
-/// TODO: Handle timeouts and gateway unavailability
-class OpenClawBridge {
-    var gatewayURL: URL?
+enum OpenClawConnectionState: Equatable {
+    case notConfigured
+    case checking
+    case connected
+    case unreachable(String)
+}
 
-    // TODO: discoverGateway() — mDNS lookup
-    // TODO: invokeSkill(name:params:) async throws -> SkillResult
-    // TODO: checkHealth() async -> Bool
+@MainActor
+class OpenClawBridge: ObservableObject {
+    @Published var lastToolCallStatus: ToolCallStatus = .idle
+    @Published var connectionState: OpenClawConnectionState = .notConfigured
+
+    private let session: URLSession
+    private let pingSession: URLSession
+    private var sessionKey: String
+    private var conversationHistory: [[String: String]] = []
+    private let maxHistoryTurns = 10
+
+    init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 120
+        self.session = URLSession(configuration: config)
+
+        let pingConfig = URLSessionConfiguration.default
+        pingConfig.timeoutIntervalForRequest = 5
+        self.pingSession = URLSession(configuration: pingConfig)
+
+        self.sessionKey = OpenClawBridge.newSessionKey()
+    }
+
+    func checkConnection() async {
+        guard OpenGlassConfig.isOpenClawConfigured else {
+            connectionState = .notConfigured
+            return
+        }
+        connectionState = .checking
+        guard let url = URL(string: "\(OpenGlassConfig.openClawHost):\(OpenGlassConfig.openClawPort)/v1/chat/completions") else {
+            connectionState = .unreachable("Invalid URL")
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(OpenGlassConfig.openClawGatewayToken)", forHTTPHeaderField: "Authorization")
+        do {
+            let (_, response) = try await pingSession.data(for: request)
+            if let http = response as? HTTPURLResponse, (200...499).contains(http.statusCode) {
+                connectionState = .connected
+                NSLog("[OpenClaw] Gateway reachable (HTTP %d)", http.statusCode)
+            } else {
+                connectionState = .unreachable("Unexpected response")
+            }
+        } catch {
+            connectionState = .unreachable(error.localizedDescription)
+            NSLog("[OpenClaw] Gateway unreachable: %@", error.localizedDescription)
+        }
+    }
+
+    func resetSession() {
+        sessionKey = OpenClawBridge.newSessionKey()
+        conversationHistory = []
+        NSLog("[OpenClaw] New session: %@", sessionKey)
+    }
+
+    private static func newSessionKey() -> String {
+        let ts = ISO8601DateFormatter().string(from: Date())
+        return "agent:main:glass:\(ts)"
+    }
+
+    // MARK: - Agent Chat
+
+    func delegateTask(
+        task: String,
+        toolName: String = "execute"
+    ) async -> ToolResult {
+        lastToolCallStatus = .executing(toolName)
+
+        guard let url = URL(string: "\(OpenGlassConfig.openClawHost):\(OpenGlassConfig.openClawPort)/v1/chat/completions") else {
+            lastToolCallStatus = .failed(toolName, "Invalid URL")
+            return .failure("Invalid gateway URL")
+        }
+
+        conversationHistory.append(["role": "user", "content": task])
+
+        if conversationHistory.count > maxHistoryTurns * 2 {
+            conversationHistory = Array(conversationHistory.suffix(maxHistoryTurns * 2))
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(OpenGlassConfig.openClawGatewayToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(sessionKey, forHTTPHeaderField: "x-openclaw-session-key")
+
+        let body: [String: Any] = [
+            "model": "openclaw",
+            "messages": conversationHistory,
+            "stream": false
+        ]
+
+        NSLog("[OpenClaw] Sending %d messages in conversation", conversationHistory.count)
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await session.data(for: request)
+            let httpResponse = response as? HTTPURLResponse
+
+            guard let statusCode = httpResponse?.statusCode, (200...299).contains(statusCode) else {
+                let code = httpResponse?.statusCode ?? 0
+                let bodyStr = String(data: data, encoding: .utf8) ?? "no body"
+                NSLog("[OpenClaw] Chat failed: HTTP %d - %@", code, String(bodyStr.prefix(200)))
+                lastToolCallStatus = .failed(toolName, "HTTP \(code)")
+                return .failure("Agent returned HTTP \(code)")
+            }
+
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let first = choices.first,
+               let message = first["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                conversationHistory.append(["role": "assistant", "content": content])
+                NSLog("[OpenClaw] Agent result: %@", String(content.prefix(200)))
+                lastToolCallStatus = .completed(toolName)
+                return .success(content)
+            }
+
+            let raw = String(data: data, encoding: .utf8) ?? "OK"
+            conversationHistory.append(["role": "assistant", "content": raw])
+            NSLog("[OpenClaw] Agent raw: %@", String(raw.prefix(200)))
+            lastToolCallStatus = .completed(toolName)
+            return .success(raw)
+        } catch {
+            NSLog("[OpenClaw] Agent error: %@", error.localizedDescription)
+            lastToolCallStatus = .failed(toolName, error.localizedDescription)
+            return .failure("Agent error: \(error.localizedDescription)")
+        }
+    }
 }
