@@ -77,17 +77,25 @@ final class ToolCallRouterTests: XCTestCase {
         _ = result
     }
 
-    func test_cancelAll_cancelsEverything() {
+    func test_cancelAll_cancelsEverything() async {
+        // Capture bridge to avoid accessing mockBridge after tearDown
+        let bridge = mockBridge!
+
         // Create multiple tasks
         let tasks = (0..<3).map { i in
             Task { @MainActor in
-                await mockBridge.delegateTask(task: "task \(i)")
+                await bridge.delegateTask(task: "task \(i)")
             }
         }
 
         // Cancel all
         for task in tasks {
             task.cancel()
+        }
+
+        // Await to ensure completion before tearDown
+        for task in tasks {
+            _ = await task.value
         }
 
         // No crash = pass

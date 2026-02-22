@@ -16,11 +16,6 @@ struct QRContent {
 
     /// Parse raw QR string into a typed content.
     static func parse(_ string: String, bounds: CGRect) -> QRContent {
-        // URL
-        if let url = URL(string: string), url.scheme != nil {
-            return QRContent(rawValue: string, type: .url(url), bounds: bounds)
-        }
-
         // WiFi: WIFI:S:<ssid>;T:<encryption>;P:<password>;;
         if string.hasPrefix("WIFI:") {
             var ssid = "", password = "", encryption = ""
@@ -37,6 +32,11 @@ struct QRContent {
         // vCard
         if string.hasPrefix("BEGIN:VCARD") {
             return QRContent(rawValue: string, type: .vCard(string), bounds: bounds)
+        }
+
+        // URL
+        if let url = URL(string: string), url.scheme != nil {
+            return QRContent(rawValue: string, type: .url(url), bounds: bounds)
         }
 
         // Plain text

@@ -21,13 +21,15 @@ final class ModeRouterTests: XCTestCase {
         XCTAssertEqual(sut.currentMode.id, "assistant")
     }
 
-    func test_availableModes_containsFourModes() {
-        XCTAssertEqual(sut.availableModes.count, 4)
+    func test_availableModes_containsAllModes() {
+        XCTAssertEqual(sut.availableModes.count, 6)
         let ids = sut.availableModes.map { $0.id }
         XCTAssertTrue(ids.contains("assistant"))
         XCTAssertTrue(ids.contains("translator"))
         XCTAssertTrue(ids.contains("qr_scanner"))
         XCTAssertTrue(ids.contains("spotter"))
+        XCTAssertTrue(ids.contains("coach"))
+        XCTAssertTrue(ids.contains("social"))
     }
 
     // MARK: - switchTo

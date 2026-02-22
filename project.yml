@@ -1,0 +1,72 @@
+name: OpenGlass
+options:
+  bundleIdPrefix: com.openglass
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+packages:
+  MetaWearablesDAT:
+    url: https://github.com/facebook/meta-wearables-dat-ios
+    exactVersion: "0.4.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+
+targets:
+  OpenGlass:
+    type: application
+    platform: iOS
+    sources:
+      - path: OpenGlass
+        excludes:
+          - "Secrets.example.swift"
+    dependencies:
+      - package: MetaWearablesDAT
+        product: MWDATCore
+      - package: MetaWearablesDAT
+        product: MWDATCamera
+    settings:
+      base:
+        INFOPLIST_FILE: ""
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.michaeldarlington.openglass
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_NSCameraUsageDescription: "OpenGlass needs camera access to capture frames for AI analysis."
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "OpenGlass needs microphone access for voice interaction with Gemini."
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "OpenGlass uses the local network to connect to OpenClaw on your Mac."
+        INFOPLIST_KEY_NSBonjourServices: "_openclaw._tcp"
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "OpenGlass needs Bluetooth to connect to Meta Ray-Ban Smart Glasses."
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+      info:
+        properties:
+          CFBundleURLTypes:
+            - CFBundleURLSchemes:
+                - openglass
+          UIBackgroundModes:
+            - bluetooth-peripheral
+            - external-accessory
+          UISupportedExternalAccessoryProtocols:
+            - com.meta.ar.wearable
+          MWDAT:
+            AppLinkURLScheme: "openglass://"
+            MetaAppID: "$(META_APP_ID)"
+            ClientToken: "$(META_CLIENT_TOKEN)"
+            TeamID: "$(DEVELOPMENT_TEAM)"
+
+  OpenGlassTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OpenGlassTests
+    dependencies:
+      - target: OpenGlass
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.openglass.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/OpenGlass.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenGlass"
+        BUNDLE_LOADER: "$(TEST_HOST)"

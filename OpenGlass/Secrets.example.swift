@@ -8,4 +8,8 @@ enum Secrets {
     static let openClawHookToken = "YOUR_OPENCLAW_HOOK_TOKEN"
     static let openClawGatewayToken = "YOUR_OPENCLAW_GATEWAY_TOKEN"
     static let openClawTunnelHost = "https://YOUR_TUNNEL_DOMAIN.example.com"
+
+    // Meta DAT SDK (Ray-Ban Smart Glasses)
+    static let metaAppID = "YOUR_META_APP_ID"
+    static let metaClientToken = "YOUR_META_CLIENT_TOKEN"
 }
