@@ -44,13 +44,17 @@ targets:
       info:
         properties:
           CFBundleURLTypes:
-            - CFBundleURLSchemes:
+            - CFBundleTypeRole: Editor
+              CFBundleURLName: "$(PRODUCT_BUNDLE_IDENTIFIER)"
+              CFBundleURLSchemes:
                 - openglass
           UIBackgroundModes:
             - bluetooth-peripheral
             - external-accessory
           UISupportedExternalAccessoryProtocols:
             - com.meta.ar.wearable
+          NSAppTransportSecurity:
+            NSAllowsLocalNetworking: true
           MWDAT:
             AppLinkURLScheme: "openglass://"
             MetaAppID: "$(META_APP_ID)"

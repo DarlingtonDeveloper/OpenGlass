@@ -8,8 +8,11 @@ struct OpenGlassApp: App {
     init() {
         do {
             try Wearables.configure()
+            NSLog("[OpenGlass] Wearables SDK configured — registration: %@, devices: %d",
+                  Wearables.shared.registrationState.description,
+                  Wearables.shared.devices.count)
         } catch {
-            NSLog("[OpenGlass] Failed to configure Wearables SDK: %@", error.localizedDescription)
+            NSLog("[OpenGlass] ⚠️ Wearables.configure() FAILED: %@", "\(error)")
         }
     }
 
@@ -19,17 +22,13 @@ struct OpenGlassApp: App {
                 .environmentObject(sessionViewModel)
                 .environmentObject(sessionViewModel.modeRouter)
                 .onOpenURL { url in
-                    guard
-                        let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                        components.queryItems?.contains(where: { $0.name == "metaWearablesAction" }) == true
-                    else {
-                        return
-                    }
+                    NSLog("[OpenGlass] onOpenURL: %@", url.absoluteString)
                     Task {
                         do {
-                            _ = try await Wearables.shared.handleUrl(url)
+                            let handled = try await Wearables.shared.handleUrl(url)
+                            NSLog("[OpenGlass] handleUrl result: %@", handled ? "handled" : "not handled")
                         } catch {
-                            NSLog("[OpenGlass] Failed to handle DAT URL: %@", error.localizedDescription)
+                            NSLog("[OpenGlass] handleUrl error: %@", "\(error)")
                         }
                     }
                 }

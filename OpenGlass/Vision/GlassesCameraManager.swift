@@ -82,20 +82,13 @@ class GlassesCameraManager: ObservableObject {
     // MARK: - Streaming
 
     private func startStreaming() async {
-        // Check camera permission
-        do {
-            let status = try await wearables.checkPermissionStatus(.camera)
-            if status != .granted {
-                let requestStatus = try await wearables.requestPermission(.camera)
-                guard requestStatus == .granted else {
-                    errorMessage = "Camera permission denied on glasses"
-                    return
-                }
-            }
-        } catch {
-            errorMessage = "Permission check failed: \(error)"
-            return
-        }
+        NSLog("[GlassesCamera] startStreaming — registration: %@, devices: %d, sdk registration: %@",
+              registrationState.description, devices.count,
+              wearables.registrationState.description)
+
+        // Skip permission check — AutoDeviceSelector and StreamSession handle
+        // waiting for a device. Permission will be requested once a device connects.
+        // Calling startRegistration() when already registered causes state churn.
 
         let selector = AutoDeviceSelector(wearables: wearables)
         self.deviceSelector = selector
@@ -107,19 +100,40 @@ class GlassesCameraManager: ObservableObject {
         )
         let session = StreamSession(streamSessionConfig: config, deviceSelector: selector)
         self.streamSession = session
+        NSLog("[GlassesCamera] StreamSession created — codec: raw, resolution: low, fps: 24")
 
         attachListeners(session)
 
-        // Monitor active device
+        // Monitor active device and request camera permission when one connects
         activeDeviceTask = Task { [weak self] in
+            var permissionRequested = false
             for await device in selector.activeDeviceStream() {
                 guard let self, !Task.isCancelled else { break }
-                self.hasActiveDevice = device != nil
-                self.isConnected = device != nil
+                let connected = device != nil
+                NSLog("[GlassesCamera] Active device changed: %@", device ?? "nil")
+                self.hasActiveDevice = connected
+                self.isConnected = connected
+
+                // Request camera permission once when first device connects
+                if connected && !permissionRequested {
+                    permissionRequested = true
+                    do {
+                        let status = try await self.wearables.checkPermissionStatus(.camera)
+                        NSLog("[GlassesCamera] Camera permission: %@", "\(status)")
+                        if status != .granted {
+                            let result = try await self.wearables.requestPermission(.camera)
+                            NSLog("[GlassesCamera] Camera permission request result: %@", "\(result)")
+                        }
+                    } catch {
+                        NSLog("[GlassesCamera] Camera permission check failed: %@ — stream may still work", "\(error)")
+                    }
+                }
             }
         }
 
+        NSLog("[GlassesCamera] Starting session...")
         await session.start()
+        NSLog("[GlassesCamera] session.start() returned — state: %@", "\(session.state)")
     }
 
     private func stopStreaming() async {
@@ -139,11 +153,21 @@ class GlassesCameraManager: ObservableObject {
         hasActiveDevice = false
     }
 
+    private var frameCount = 0
+
     private func attachListeners(_ session: StreamSession) {
+        frameCount = 0
+
         videoFrameToken = session.videoFramePublisher.listen { [weak self] videoFrame in
             let image = videoFrame.makeUIImage()
             Task { @MainActor [weak self] in
-                guard let self, let image else { return }
+                guard let self else { return }
+                self.frameCount += 1
+                if self.frameCount <= 5 || self.frameCount % 100 == 0 {
+                    NSLog("[GlassesCamera] Frame #%d received — image: %@",
+                          self.frameCount, image != nil ? "\(Int(image!.size.width))x\(Int(image!.size.height))" : "nil")
+                }
+                guard let image else { return }
                 self.onFrameCaptured?(image)
             }
         }
@@ -151,6 +175,7 @@ class GlassesCameraManager: ObservableObject {
         stateToken = session.statePublisher.listen { [weak self] state in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                NSLog("[GlassesCamera] Stream state → %@", "\(state)")
                 self.streamState = state
             }
         }

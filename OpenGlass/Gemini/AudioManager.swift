@@ -41,6 +41,9 @@ class AudioManager {
     func startCapture() throws {
         guard !isCapturing else { return }
 
+        // Reset engine to pick up any audio route changes (e.g. Bluetooth glasses mic)
+        audioEngine.reset()
+
         audioEngine.attach(playerNode)
         let playerFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
@@ -58,39 +61,45 @@ class AudioManager {
               inputNativeFormat.commonFormat == .pcmFormatInt16 ? "Int16" : "Other",
               inputNativeFormat.sampleRate, inputNativeFormat.channelCount)
 
-        let needsResample = inputNativeFormat.sampleRate != OpenGlassConfig.inputAudioSampleRate
-            || inputNativeFormat.channelCount != OpenGlassConfig.audioChannels
-
-        NSLog("[Audio] Needs resample: %@", needsResample ? "YES" : "NO")
-
         sendQueue.async { self.accumulatedData = Data() }
 
-        var converter: AVAudioConverter?
-        if needsResample {
-            let resampleFormat = AVAudioFormat(
-                commonFormat: .pcmFormatFloat32,
-                sampleRate: OpenGlassConfig.inputAudioSampleRate,
-                channels: OpenGlassConfig.audioChannels,
-                interleaved: false
-            )!
-            converter = AVAudioConverter(from: inputNativeFormat, to: resampleFormat)
-        }
-
         var tapCount = 0
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputNativeFormat) { [weak self] buffer, _ in
+        var lazyConverter: AVAudioConverter?
+        var converterInitialized = false
+        let targetFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: OpenGlassConfig.inputAudioSampleRate,
+            channels: OpenGlassConfig.audioChannels,
+            interleaved: false
+        )!
+
+        // Use nil format to let the engine negotiate — avoids format mismatch
+        // when Bluetooth route (glasses mic) changes the hardware sample rate
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
             guard let self else { return }
 
             tapCount += 1
+
+            // Create converter lazily from actual buffer format
+            if !converterInitialized {
+                converterInitialized = true
+                let bufferFormat = buffer.format
+                NSLog("[Audio] Tap buffer format: %@ sampleRate=%.0f channels=%d",
+                      bufferFormat.commonFormat == .pcmFormatFloat32 ? "Float32" : "Other",
+                      bufferFormat.sampleRate, bufferFormat.channelCount)
+                if bufferFormat.sampleRate != OpenGlassConfig.inputAudioSampleRate
+                    || bufferFormat.channelCount != OpenGlassConfig.audioChannels {
+                    lazyConverter = AVAudioConverter(from: bufferFormat, to: targetFormat)
+                    NSLog("[Audio] Created converter: %.0f Hz → %.0f Hz", bufferFormat.sampleRate, targetFormat.sampleRate)
+                } else {
+                    NSLog("[Audio] No conversion needed")
+                }
+            }
+
             let pcmData: Data
 
-            if let converter {
-                let resampleFormat = AVAudioFormat(
-                    commonFormat: .pcmFormatFloat32,
-                    sampleRate: OpenGlassConfig.inputAudioSampleRate,
-                    channels: OpenGlassConfig.audioChannels,
-                    interleaved: false
-                )!
-                guard let resampled = self.convertBuffer(buffer, using: converter, targetFormat: resampleFormat) else {
+            if let converter = lazyConverter {
+                guard let resampled = self.convertBuffer(buffer, using: converter, targetFormat: targetFormat) else {
                     if tapCount <= 3 { NSLog("[Audio] Resample failed for tap #%d", tapCount) }
                     return
                 }
