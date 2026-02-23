@@ -203,6 +203,7 @@ class OpenClawBridge: ObservableObject {
         request.setValue("Bearer \(OpenGlassConfig.openClawGatewayToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(sessionKey, forHTTPHeaderField: "x-openclaw-session-key")
+        request.setValue("main", forHTTPHeaderField: "x-openclaw-agent-id")
 
         let body: [String: Any] = [
             "model": "openclaw",
