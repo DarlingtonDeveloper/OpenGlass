@@ -42,7 +42,23 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
 
-                Spacer()
+                // Camera preview
+                if session.isGeminiActive {
+                    if let frame = session.latestFrame {
+                        Image(uiImage: frame)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    } else {
+                        Spacer()
+                        ProgressView()
+                            .tint(.white)
+                        Spacer()
+                    }
+                } else {
+                    Spacer()
+                }
 
                 // Transcript overlay
                 TranscriptView(

@@ -73,6 +73,9 @@ class AudioManager {
             interleaved: false
         )!
 
+        // Remove any stale tap before installing (guards against double-tap crash)
+        inputNode.removeTap(onBus: 0)
+
         // Use nil format to let the engine negotiate — avoids format mismatch
         // when Bluetooth route (glasses mic) changes the hardware sample rate
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in

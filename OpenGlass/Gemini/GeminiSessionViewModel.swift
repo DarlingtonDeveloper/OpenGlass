@@ -18,6 +18,7 @@ class GeminiSessionViewModel: ObservableObject {
     @Published var openClawConnectionState: OpenClawConnectionState = .notConfigured
     @Published var detectedQRCodes: [QRContent] = []
     @Published var reconnecting: Bool = false
+    @Published var latestFrame: UIImage?
 
     let modeRouter = ModeRouter()
     private let geminiService = GeminiLiveService()
@@ -199,6 +200,9 @@ class GeminiSessionViewModel: ObservableObject {
         // Wire active camera to throttler — no fallback, respect the setting
         let activeCamera: CameraSource = streamingMode == .iPhone ? iPhoneCamera : glassesCamera
         activeCamera.onFrameCaptured = { [weak self] image in
+            Task { @MainActor in
+                self?.latestFrame = image
+            }
             self?.frameThrottler.submit(image)
         }
 
@@ -261,6 +265,7 @@ class GeminiSessionViewModel: ObservableObject {
         userTranscript = ""
         aiTranscript = ""
         toolCallStatus = .idle
+        latestFrame = nil
         detectedQRCodes = []
     }
 }
