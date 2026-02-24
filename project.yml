@@ -30,36 +30,36 @@ targets:
         product: MWDATCamera
     settings:
       base:
-        INFOPLIST_FILE: ""
-        GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: com.michaeldarlington.openglass
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
-        INFOPLIST_KEY_NSCameraUsageDescription: "OpenGlass needs camera access to capture frames for AI analysis."
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: "OpenGlass needs microphone access for voice interaction with Gemini."
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "OpenGlass uses the local network to connect to OpenClaw on your Mac."
-        INFOPLIST_KEY_NSBonjourServices: "_openclaw._tcp"
-        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "OpenGlass needs Bluetooth to connect to Meta Ray-Ban Smart Glasses."
-        INFOPLIST_KEY_UILaunchScreen_Generation: true
-      info:
-        properties:
-          CFBundleURLTypes:
-            - CFBundleTypeRole: Editor
-              CFBundleURLName: "$(PRODUCT_BUNDLE_IDENTIFIER)"
-              CFBundleURLSchemes:
-                - openglass
-          UIBackgroundModes:
-            - bluetooth-peripheral
-            - external-accessory
-          UISupportedExternalAccessoryProtocols:
-            - com.meta.ar.wearable
-          NSAppTransportSecurity:
-            NSAllowsLocalNetworking: true
-          MWDAT:
-            AppLinkURLScheme: "openglass://"
-            MetaAppID: "$(META_APP_ID)"
-            ClientToken: "$(META_CLIENT_TOKEN)"
-            TeamID: "$(DEVELOPMENT_TEAM)"
+    info:
+      path: OpenGlass/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: "$(PRODUCT_BUNDLE_IDENTIFIER)"
+            CFBundleURLSchemes:
+              - openglass
+        UIBackgroundModes:
+          - bluetooth-peripheral
+          - external-accessory
+        UISupportedExternalAccessoryProtocols:
+          - com.meta.ar.wearable
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSCameraUsageDescription: "OpenGlass needs camera access to capture frames for AI analysis."
+        NSMicrophoneUsageDescription: "OpenGlass needs microphone access for voice interaction with Gemini."
+        NSLocalNetworkUsageDescription: "OpenGlass uses the local network to connect to OpenClaw on your Mac."
+        NSBonjourServices:
+          - _openclaw._tcp
+        NSBluetoothAlwaysUsageDescription: "OpenGlass needs Bluetooth to connect to Meta Ray-Ban Smart Glasses."
+        UILaunchScreen: {}
+        MWDAT:
+          AppLinkURLScheme: "openglass://"
+          MetaAppID: "$(META_APP_ID)"
+          ClientToken: "$(META_CLIENT_TOKEN)"
+          TeamID: "$(DEVELOPMENT_TEAM)"
 
   OpenGlassTests:
     type: bundle.unit-test

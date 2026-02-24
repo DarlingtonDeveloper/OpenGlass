@@ -196,33 +196,10 @@ class GeminiSessionViewModel: ObservableObject {
             }
         }
 
-        // Wire camera to throttler
-        // In glasses mode: try glasses camera first, fall back to iPhone camera
-        // for visual input while audio routes through glasses (mic + speakers)
-        let activeCamera: CameraSource
-        if streamingMode == .glasses && glassesCamera.isConnected {
-            activeCamera = glassesCamera
-        } else {
-            activeCamera = iPhoneCamera
-            if streamingMode == .glasses {
-                NSLog("[Session] Glasses camera not connected — using iPhone camera with glasses audio")
-            }
-        }
+        // Wire active camera to throttler — no fallback, respect the setting
+        let activeCamera: CameraSource = streamingMode == .iPhone ? iPhoneCamera : glassesCamera
         activeCamera.onFrameCaptured = { [weak self] image in
             self?.frameThrottler.submit(image)
-        }
-
-        // If using glasses mode with iPhone camera fallback, also wire up
-        // glasses camera so it can take over if it connects mid-session
-        if streamingMode == .glasses && activeCamera === iPhoneCamera {
-            glassesCamera.onFrameCaptured = { [weak self] image in
-                guard let self else { return }
-                // Switch to glasses frames once they start flowing
-                NSLog("[Session] Glasses camera frame received — switching from iPhone camera")
-                self.iPhoneCamera.stop()
-                self.frameThrottler.submit(image)
-            }
-            glassesCamera.start()
         }
 
         // Audio setup

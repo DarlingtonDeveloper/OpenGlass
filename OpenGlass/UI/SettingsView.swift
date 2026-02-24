@@ -85,7 +85,7 @@ struct SettingsView: View {
 
                     if streamingModeRaw == "glasses" {
                         NavigationLink("Glasses Connection") {
-                            GlassesConnectionView()
+                            GlassesConnectionView(glasses: session.glassesCamera)
                         }
                     }
                 }
